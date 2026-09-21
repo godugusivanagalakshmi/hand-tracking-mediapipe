@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hand Tracking</title>
+</head>
+<body>
+  <h1>Hand Tracking</h1>
+  <video id="video" autoplay playsinline width="640"></video>
+
+  <script type="module">
+    const video = document.getElementById("video");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    } catch (error) {
+      alert("Camera permission required!");
+      console.error(error);
+    }
+  </script>
+</body>
+</html>
