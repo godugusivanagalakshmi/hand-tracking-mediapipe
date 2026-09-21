@@ -2,6 +2,11 @@
 
 A real-time hand tracking project built with Python, OpenCV, and MediaPipe.
 
+## 🚀 Live Demo
+
+👉 [Live URL](https://godugusivanagalakshmi.github.io/hand-tracking-mediapipe/)
+
+
 ## Features
 
 * Real-time hand detection
