@@ -2,58 +2,23 @@
 <html>
 <head>
   <title>Hand Tracking</title>
-  <style>
-    body { text-align:center; font-family:Arial; }
-    video { width:640px; max-width:95%; }
-  </style>
 </head>
 <body>
-  <h1>✋ Hand Tracking</h1>
-  <video id="video" autoplay playsinline></video>
+  <h1>Hand Tracking</h1>
 
-  <script type="module">
-    import {
-      HandLandmarker,
-      FilesetResolver
-    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
+  <video id="video" autoplay playsinline width="640"></video>
 
+  <script>
     const video = document.getElementById("video");
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true
-    });
-    video.srcObject = stream;
-
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
-    );
-
-    const handLandmarker = await HandLandmarker.createFromOptions(
-      vision,
-      {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-        },
-        runningMode: "VIDEO",
-        numHands: 2
-      }
-    );
-
-    video.addEventListener("loadeddata", () => {
-      detect();
-    });
-
-    function detect() {
-      const result = handLandmarker.detectForVideo(
-        video,
-        performance.now()
-      );
-
-      console.log(result);
-
-      requestAnimationFrame(detect);
-    }
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(stream) {
+        video.srcObject = stream;
+      })
+      .catch(function(error) {
+        console.log(error);
+        alert("Camera permission/error: " + error);
+      });
   </script>
 </body>
 </html>
