@@ -7,13 +7,14 @@
 
   <style>
     body {
-      text-align: center;
-      font-family: Arial, sans-serif;
+      margin: 0;
       background: #111;
       color: white;
+      text-align: center;
+      font-family: Arial;
     }
 
-    .camera {
+    #container {
       position: relative;
       display: inline-block;
     }
@@ -21,7 +22,6 @@
     video, canvas {
       width: 640px;
       max-width: 95vw;
-      border-radius: 10px;
     }
 
     canvas {
@@ -29,14 +29,20 @@
       left: 0;
       top: 0;
     }
+
+    #status {
+      font-size: 20px;
+      margin: 15px;
+    }
   </style>
 </head>
 
 <body>
 
 <h1>✋ Hand Tracking</h1>
+<div id="status">Starting...</div>
 
-<div class="camera">
+<div id="container">
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
 </div>
@@ -51,17 +57,28 @@ import {
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const status = document.getElementById("status");
 
-async function start() {
+async function main() {
 
-  // Camera
+  // CAMERA
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: true
+    video: {
+      width: 640,
+      height: 480
+    }
   });
 
   video.srcObject = stream;
 
-  // MediaPipe
+  await video.play();
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  status.textContent = "Loading hand tracker...";
+
+  // MEDIAPIPE
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
   );
@@ -73,91 +90,110 @@ async function start() {
         modelAssetPath:
           "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
       },
-
       runningMode: "VIDEO",
-      numHands: 2
+      numHands: 2,
+      minHandDetectionConfidence: 0.3,
+      minHandPresenceConfidence: 0.3,
+      minTrackingConfidence: 0.3
     }
   );
 
-  video.addEventListener("loadeddata", () => {
+  status.textContent = "Show your hand ✋";
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    detect();
-
-  });
+  let lastTime = -1;
 
   function detect() {
 
-    ctx.clearRect(
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+    if (video.readyState >= 2) {
 
-    const result = handLandmarker.detectForVideo(
-      video,
-      performance.now()
-    );
+      const now = performance.now();
 
-    if (result.landmarks) {
+      if (now !== lastTime) {
 
-      for (const hand of result.landmarks) {
+        lastTime = now;
 
-        // Green dots
-        ctx.fillStyle = "lime";
+        const result = handLandmarker.detectForVideo(
+          video,
+          now
+        );
 
-        for (const point of hand) {
+        ctx.clearRect(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
 
-          const x = point.x * canvas.width;
-          const y = point.y * canvas.height;
+        if (result.landmarks && result.landmarks.length > 0) {
 
-          ctx.beginPath();
-          ctx.arc(x, y, 6, 0, Math.PI * 2);
-          ctx.fill();
-        }
+          status.textContent =
+            "✅ HAND DETECTED!";
 
-        // Green lines
-        ctx.strokeStyle = "lime";
-        ctx.lineWidth = 3;
+          for (const hand of result.landmarks) {
 
-        const connections = [
-          [0,1],[1,2],[2,3],[3,4],
-          [0,5],[5,6],[6,7],[7,8],
-          [5,9],[9,10],[10,11],[11,12],
-          [9,13],[13,14],[14,15],[15,16],
-          [13,17],[17,18],[18,19],[19,20],
-          [0,17]
-        ];
+            // LINES
+            ctx.strokeStyle = "lime";
+            ctx.lineWidth = 4;
 
-        for (const [a,b] of connections) {
+            const connections = [
+              [0,1],[1,2],[2,3],[3,4],
+              [0,5],[5,6],[6,7],[7,8],
+              [5,9],[9,10],[10,11],[11,12],
+              [9,13],[13,14],[14,15],[15,16],
+              [13,17],[17,18],[18,19],[19,20],
+              [0,17]
+            ];
 
-          ctx.beginPath();
+            for (const [a,b] of connections) {
 
-          ctx.moveTo(
-            hand[a].x * canvas.width,
-            hand[a].y * canvas.height
-          );
+              ctx.beginPath();
 
-          ctx.lineTo(
-            hand[b].x * canvas.width,
-            hand[b].y * canvas.height
-          );
+              ctx.moveTo(
+                hand[a].x * canvas.width,
+                hand[a].y * canvas.height
+              );
 
-          ctx.stroke();
+              ctx.lineTo(
+                hand[b].x * canvas.width,
+                hand[b].y * canvas.height
+              );
+
+              ctx.stroke();
+            }
+
+            // DOTS
+            ctx.fillStyle = "lime";
+
+            for (const point of hand) {
+
+              const x = point.x * canvas.width;
+              const y = point.y * canvas.height;
+
+              ctx.beginPath();
+              ctx.arc(x, y, 7, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+
+        } else {
+          status.textContent = "👋 No hand detected";
         }
       }
     }
 
     requestAnimationFrame(detect);
   }
+
+  detect();
 }
 
-start().catch(error => {
+main().catch(error => {
+
   console.error(error);
-  alert("MediaPipe error. Press F12 and check Console.");
+
+  status.textContent =
+    "❌ Error: " + error.message;
+
 });
 
 </script>
