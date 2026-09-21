@@ -1,103 +1,165 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Hand Tracking</title>
+
   <style>
-    body { text-align:center; font-family:Arial; }
-    .box { position:relative; display:inline-block; }
-    video, canvas { width:640px; max-width:95%; }
-    canvas { position:absolute; left:0; top:0; }
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+    }
+
+    .camera {
+      position: relative;
+      display: inline-block;
+    }
+
+    video, canvas {
+      width: 640px;
+      max-width: 95vw;
+      border-radius: 10px;
+    }
+
+    canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
   </style>
 </head>
 
 <body>
-  <h1>✋ Hand Tracking</h1>
 
-  <div class="box">
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-  </div>
+<h1>✋ Hand Tracking</h1>
+
+<div class="camera">
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+</div>
 
 <script type="module">
+
 import {
   HandLandmarker,
   FilesetResolver
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1";
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const stream = await navigator.mediaDevices.getUserMedia({video:true});
-video.srcObject = stream;
+async function start() {
 
-const vision = await FilesetResolver.forVisionTasks(
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-);
+  // Camera
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true
+  });
 
-const hands = await HandLandmarker.createFromOptions(vision, {
-  baseOptions: {
-    modelAssetPath:
-      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-  },
-  runningMode: "VIDEO",
-  numHands: 2
-});
+  video.srcObject = stream;
 
-video.onloadeddata = () => {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  detect();
-};
+  // MediaPipe
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+  );
 
-function detect() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const handLandmarker = await HandLandmarker.createFromOptions(
+    vision,
+    {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+      },
 
-  const result = hands.detectForVideo(video, performance.now());
+      runningMode: "VIDEO",
+      numHands: 2
+    }
+  );
 
-  if (result.landmarks) {
-    for (const hand of result.landmarks) {
+  video.addEventListener("loadeddata", () => {
 
-      ctx.fillStyle = "lime";
-      ctx.strokeStyle = "lime";
-      ctx.lineWidth = 3;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-      for (const p of hand) {
-        ctx.beginPath();
-        ctx.arc(
-          p.x * canvas.width,
-          p.y * canvas.height,
-          5, 0, Math.PI * 2
-        );
-        ctx.fill();
-      }
+    detect();
 
-      const connections = [
-        [0,1],[1,2],[2,3],[3,4],
-        [0,5],[5,6],[6,7],[7,8],
-        [5,9],[9,10],[10,11],[11,12],
-        [9,13],[13,14],[14,15],[15,16],
-        [13,17],[17,18],[18,19],[19,20],
-        [0,17]
-      ];
+  });
 
-      for (const [a,b] of connections) {
-        ctx.beginPath();
-        ctx.moveTo(
-          hand[a].x * canvas.width,
-          hand[a].y * canvas.height
-        );
-        ctx.lineTo(
-          hand[b].x * canvas.width,
-          hand[b].y * canvas.height
-        );
-        ctx.stroke();
+  function detect() {
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const result = handLandmarker.detectForVideo(
+      video,
+      performance.now()
+    );
+
+    if (result.landmarks) {
+
+      for (const hand of result.landmarks) {
+
+        // Green dots
+        ctx.fillStyle = "lime";
+
+        for (const point of hand) {
+
+          const x = point.x * canvas.width;
+          const y = point.y * canvas.height;
+
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Green lines
+        ctx.strokeStyle = "lime";
+        ctx.lineWidth = 3;
+
+        const connections = [
+          [0,1],[1,2],[2,3],[3,4],
+          [0,5],[5,6],[6,7],[7,8],
+          [5,9],[9,10],[10,11],[11,12],
+          [9,13],[13,14],[14,15],[15,16],
+          [13,17],[17,18],[18,19],[19,20],
+          [0,17]
+        ];
+
+        for (const [a,b] of connections) {
+
+          ctx.beginPath();
+
+          ctx.moveTo(
+            hand[a].x * canvas.width,
+            hand[a].y * canvas.height
+          );
+
+          ctx.lineTo(
+            hand[b].x * canvas.width,
+            hand[b].y * canvas.height
+          );
+
+          ctx.stroke();
+        }
       }
     }
-  }
 
-  requestAnimationFrame(detect);
+    requestAnimationFrame(detect);
+  }
 }
+
+start().catch(error => {
+  console.error(error);
+  alert("MediaPipe error. Press F12 and check Console.");
+});
+
 </script>
+
 </body>
 </html>
